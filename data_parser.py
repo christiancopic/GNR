@@ -8,8 +8,9 @@ import pandas as pd
 
 def main():
     cwd = os.getcwd()
-    # Will have to change this line to be compatible with windows
+    # Adding count for debugging purposes
     count = 0
+    # Will have to change this line to be compatible with windows
     for file in os.listdir(cwd + '/devicedataset'):
         if count < 2:
             if file[-4:] == '.csv':
