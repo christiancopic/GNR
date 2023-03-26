@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pptx import Presentation
 from pptx.util import Inches
+import math
 
 
 def main():
@@ -14,7 +15,7 @@ def main():
     count = 0
     # Will have to change this line to be compatible with windows
     for file in os.listdir(cwd + '/devicedataset'):
-        if count < 200:
+        if count < 1:
             if file[-4:] == '.csv':
                 data = pd.read_csv(cwd + '/devicedataset/' + file)
                 device_name = file.split('[')[1].split(']')[0].split(' ')[0]
@@ -53,11 +54,34 @@ def e_char(data, device_name):
     VD_values = data['VD'].unique()
     for i in range(len(VD_values)):
         subdf = data[data['VD'] == VD_values[i]]
-        print('For VD = ' + str(VD_values[i]) + ' on device ' + device_name + ': ')
-        print('Min ID Value: ' + str(subdf['ID'].min(0)))
-        print('Max ID Value: ' + str(subdf['ID'].max(0)))
-        print('Ion/Ioff ratio: ' + str(subdf['ID'].max(0) / subdf['ID'].min(0)))
-        if(VD_values[i] == -1.0): print('Max IG Value: ' + str(subdf['IG'].max(0)))
+        # Reverse & Forward Sweep
+        RS = subdf.iloc[300:,:]
+        FS = subdf.iloc[:300,:]
+        for j in [RS,FS]:
+            # Supress noise
+            pd.options.mode.chained_assignment = None
+            j['moving'] = j.rolling(5, center=True)['ID'].mean()
+            # high = about 0V
+            high_df = j.iloc[(j['VG']-0).abs().argsort()[:1]]
+            # low = about -0.5V
+            low_df = j.iloc[(j['VG']+0.5).abs().argsort()[:1]]
+
+            high_vg = float(high_df['VG'].to_string(index=False, header=False))
+            low_vg = float(low_df['VG'].to_string(index=False, header=False))
+            
+            high_id = float(high_df['moving'].to_string(index=False, header=False))
+            low_id = float(low_df['moving'].to_string(index=False, header=False))
+
+            delta_vg = high_vg-low_vg
+            delta_id = math.log10(high_id) - math.log10(low_id)
+            SS = delta_vg/delta_id
+            print('SUBTHRESHOLD for VDS= ' + str(VD_values[i]) + ' : ' + str(SS))
+            #print(str(j))
+            #print('For VD = ' + str(VD_values[i]) + ' on device ' + device_name + ': ')
+            #print('Min ID Value: ' + str(j['ID'].min(0)))
+            #print('Max ID Value: ' + str(j['ID'].max(0)))
+            #print('Ion/Ioff ratio: ' + str(j['ID'].max(0) / subdf['ID'].min(0)))
+            if(VD_values[i] == -1.0): print('Max IG Value: ' + str(j['IG'].max(0)))
 
     #put into csv/xlsx file code here:
     #also add maximum IG value for -1V = VDS
