@@ -133,6 +133,7 @@ dmypy.json
 
 # Test data
 devicedataset/
+excelFiles/
 
 #PPTX
 data_parser.pptx
