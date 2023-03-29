@@ -77,9 +77,9 @@ def e_char(data, device_name):
             high_id = high_df.values[0][-1]
             low_id = low_df.values[0][-1]
 
-            delta_vg = high_vg-low_vg
+            delta_vg = (high_vg-low_vg) * 1000 #mV
             delta_id = math.log10(high_id) - math.log10(low_id)
-            SS = delta_vg/delta_id
+            SS = delta_vg/delta_id * -1
             #print('SUBTHRESHOLD for VDS= ' + str(VD_values[i]) + ' : ' + str(SS))
 
             edata.append(SS)
