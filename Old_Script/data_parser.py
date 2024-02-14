@@ -66,6 +66,7 @@ def e_char(data, device_name):
             # Supress noise
             pd.options.mode.chained_assignment = None
             j['moving'] = j.rolling(5, center=True)['ID'].mean()
+            print(j['moving'])
             # high = about 0V
             high_df = j.iloc[(j['VG']-0).abs().argsort()[:1]]
             # low = about -0.5V
