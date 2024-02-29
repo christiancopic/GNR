@@ -15,70 +15,33 @@ def main():
     start = time.time()
     cwd = os.getcwd()
     cwd = cwd
-    completed = []
-    # Adding count for debugging purposes
-    count = 0
     total = 0
     # Will have to change this line to be compatible with windows
     for file in os.listdir(cwd + '/devicedataset/Before'):
-        # DEBUG
-        if count < 1000000:
-            if file[-4:] == '.csv':
-
-                # File structure is a mess... will be using quick and dirty
-                # method to distinguish them... hope it works well :)
-                
-                device_name = file[:3].lower()
-                vds = file[3:5]
-                device_count_neg = 0
-                device_count_pos = 0
-                file_names = []
-                flag = False
-                
-                # DEBUG
-                #if device_name == '58b':
-                    #print('e')
-
-                for file_after in os.listdir(cwd + '/devicedataset/After'):
-                    # Ugly code :(
-                    # DEBUG
-                    #if '58b'  in file_after and device_name == '58b':
-                        #print('e')
-
-                    if device_name in file_after.lower() and vds in file_after and vds == '-1':
-                        if(len(file_after) > 16):
-                            continue
-                        device_count_neg = device_count_neg + 1
-                        total = total + device_count_neg
-                        #flag = True
-                        process_ald_csvs(file, file_after, cwd, file_names, device_name, True, True)
-                    if device_name in file_after.lower() and vds in file_after and vds == '+1':
-                        if(len(file_after) > 16):
-                            continue
-                        device_count_pos = device_count_pos + 1
-                        total = total + device_count_pos
-                        #flag = True
-                        process_ald_csvs(file, file_after, cwd, file_names, device_name, True, True)
-
-                if(device_count_neg > 1 or device_count_pos > 1):
-                    print('Error: Too many files for device ' + device_name + '. Delete extra csv.')
-                    exit(0)
-
-                #print(device_name + ' has ' + str(device_count) + ' hits in After')
-
-                if False: 
-                    data_before = pd.read_csv(cwd + '/devicedataset/Before/' + file)
-                    data_after = pd.read_csv(cwd + '/devicedataset/After/' + file_after)
-                    # Fix name issue
-                    data_before = data_before.rename(columns={'Voltage Amplitude Setpoint (V).1':'Vg'})
-                    data_after = data_after.rename(columns={'Voltage Amplitude Setpoint (V).1':'Vg'})
-                    file_names.append(file)
-                    file_names.append(file_after)
-                    make_graph(data_before, data_after,device_name, file_names)
-                flag = False
-                count = count + 1
-        else:
-            continue
+        if file[-4:] == '.csv':
+            device_name = file[:3].lower()
+            vds = file[3:5]
+            device_count_neg = 0
+            device_count_pos = 0
+            file_names = []          
+            # Ugly code :(
+            for file_after in os.listdir(cwd + '/devicedataset/After'):
+                if device_name in file_after.lower() and vds in file_after and vds == '-1':
+                    if(len(file_after) > 16):
+                        continue
+                    device_count_neg = device_count_neg + 1
+                    total = total + device_count_neg
+                    process_ald_csvs(file, file_after, cwd, file_names, device_name, True, True)
+                if device_name in file_after.lower() and vds in file_after and vds == '+1':
+                    if(len(file_after) > 16):
+                        continue
+                    device_count_pos = device_count_pos + 1
+                    total = total + device_count_pos
+                    process_ald_csvs(file, file_after, cwd, file_names, device_name, True, True)
+            if(device_count_neg > 1 or device_count_pos > 1):
+                print('Error: Too many files for device ' + device_name + '. Delete extra csv.')
+                exit(0)
+            
     create_pptx()
     makeCDFs()
     print('Done. Total time: ' + str(time.time() - start))
@@ -91,13 +54,10 @@ def process_ald_csvs(file, file_after, cwd, file_names, device_name, makeGraph, 
     data_after = data_after.rename(columns={'Voltage Amplitude Setpoint (V).1':'Vg'})
     file_names.append(file)
     file_names.append(file_after)
-    if(device_name == '4af'):
-        print('debug')
-    if(len(file_names) > 2):
-        print('debug')
-    if makeGraph and False:
+
+    if makeGraph:
         make_graph(data_before, data_after,device_name, file_names)
-    if analyze and False:
+    if analyze:
         e_char(data_before, data_after,device_name, file_names)
 
 # Create ID vs. VGS curves of data
@@ -128,8 +88,6 @@ def make_graph(data_before, data_after, device_name, file_names):
     plt.savefig(device_name + vd + '.png')
     plt.close()
 
-    #save to into pptx file code here:
-
 # Calculate electrical characteristics of device
 def e_char(data_before, data_after, device_name, file_names):
     edata_before = [] # Figure out better method but this works in mean time
@@ -144,20 +102,13 @@ def e_char(data_before, data_after, device_name, file_names):
         RS_after = subdf_after.iloc[60:,:]
         FS_after = subdf_after.iloc[:60,:]
 
-        #print(device_name)
-        #print(VD_values)
-        #print(file_names)
-
         x = forward_reverse_analysis(RS_before, FS_before, VD_values, i)
         edata_before = edata_before + x
         y = forward_reverse_analysis(RS_after, FS_after, VD_values, i)
         edata_after = edata_after + y
         
-
     make_csv(edata_before, device_name, 'before', VD_values)
     make_csv(edata_after, device_name, 'after', VD_values)
-    #put into csv/xlsx file code here:
-    #also add maximum IG value for -1V = VDS
 
 
 def forward_reverse_analysis(RS, FS, VD_values, i):
@@ -167,15 +118,10 @@ def forward_reverse_analysis(RS, FS, VD_values, i):
             # Supress noise
             pd.options.mode.chained_assignment = None
             j['moving'] = j.rolling(5, center=True)['Id'].mean()
-            #print(j['moving'])
+
             # high = about 0V
             high_df = j.iloc[(j['Vg']-0).abs().argsort()[:1]]
-            # low = about -0.5V
-
-            '''
-            FIX THIS FOR BOTH VDS VALUES
-            '''
-
+            # low = about -0.5V or 0.5V
             if(VD_values[0]<0):
                 low_df = j.iloc[(j['Vg']+0.5).abs().argsort()[:1]]
             else:
@@ -190,20 +136,15 @@ def forward_reverse_analysis(RS, FS, VD_values, i):
             delta_vg = (high_vg-low_vg) * 1000 #mV
             delta_id = math.log10(high_id) - math.log10(low_id)
             SS = delta_vg/delta_id * -1
-            #print('SUBTHRESHOLD for VDS= ' + str(VD_values[i]) + ' : ' + str(SS))
 
             edata.append(SS)
             edata.append(j['moving'].min(0))
             edata.append(j['moving'].max(0))
             edata.append(j['moving'].max(0)/j['moving'].min(0))
-            #print(str(j))
-            #print('For VD = ' + str(VD_values[i]) + ' on device ' + device_name + ': ')
-            #print('Min ID Value: ' + str(j['ID'].min(0)))
-            #print('Max ID Value: ' + str(j['ID'].max(0)))
-            #print('Ion/Ioff ratio: ' + str(j['ID'].max(0) / subdf['ID'].min(0)))
+
             if(abs(VD_values[i]) == 1.0): 
-                #print('Max IG Value: ' + str(j['IG'].max(0)))
                 edata.append(j['Ig'].max(0))
+
     return edata
 
 
@@ -244,7 +185,6 @@ def make_csv(data, device_name, bef_aft, Vd):
             ['Ion/Ioff',   str(data[17]),       str(data[8]),        str(data[13]),      str(data[3])], 
             ['SS',         str(data[14]),       str(data[5]),        str(data[10]),      str(data[0])],
             ['Max Ig',     'n/a',              str(data[9]),        'n/a',             str(data[4])]]
-        #print('DATA: ' + str(data))
     else:
         rows = [[str(device_name), 'Forward Sweep', '', 'Reverse Sweep', ''], 
             ['',           '-0.1V',             '-1V',                '-0.1V',            '-1V'], 
@@ -318,8 +258,6 @@ def IoffCDF(before, after):
         y = np.arange(N) / float(N) 
         plt.semilogx(x, y, marker='o') 
 
-        #plt.hist(abs(df['Mobility']), density=True, cumulative=True, label='CDF',
-        #    histtype='step', alpha=0.8, color='k')
     plt.legend(['before ALD', 'after ALD'])
     plt.xlabel('$I_{off}$')
     plt.ylabel('CDF')
@@ -333,8 +271,6 @@ def IonCDF(before, after):
         y = np.arange(N) / float(N) 
         plt.semilogx(x, y, marker='o') 
 
-        #plt.hist(abs(df['Mobility']), density=True, cumulative=True, label='CDF',
-        #    histtype='step', alpha=0.8, color='k')
     plt.legend(['before ALD', 'after ALD'])
     plt.xlabel('$I_{on}$')
     plt.ylabel('CDF')
@@ -348,8 +284,6 @@ def IRatioCDF(before, after):
         y = np.arange(N) / float(N) 
         plt.semilogx(x, y, marker='o') 
 
-        #plt.hist(abs(df['Mobility']), density=True, cumulative=True, label='CDF',
-        #    histtype='step', alpha=0.8, color='k')
     plt.legend(['before ALD', 'after ALD'])
     plt.xlabel('$I_{on}$/$I_{off}$')
     plt.ylabel('CDF')
@@ -363,8 +297,6 @@ def ssCDF(before, after):
         y = np.arange(N) / float(N) 
         plt.semilogx(x, y, marker='o') 
 
-        #plt.hist(abs(df['Mobility']), density=True, cumulative=True, label='CDF',
-        #    histtype='step', alpha=0.8, color='k')
     plt.legend(['before ALD', 'after ALD'])
     plt.xlabel('Subthreshold Swing')
     plt.ylabel('CDF')
